@@ -69,7 +69,7 @@ Alternative (without external resistor - uses internal pull-up):
 
 ### Verification
 - Check Device Manager for a COM port
-- You should see "USB to UART Bridge" or similar
+- You should see entries like "USB-SERIAL CH340" or "Silicon Labs CP210x"
 
 ---
 
@@ -84,54 +84,12 @@ Alternative (without external resistor - uses internal pull-up):
 
 ### Method 2: PowerShell
 ```powershell
-# Run in PowerShell
 Get-CimInstance Win32_PnPEntity | Where-Object {$_.Name -match 'COM\d+'} | Select-Object Name
 ```
 
-### Method 3: Using the Helper Script
+### Method 3: Using the Wrapper Script
 ```powershell
-.\build_and_flash.ps1 list-ports
-```
-
-### Method 4: CMD
-```cmd
-wmic logicaldisk get name
-```
-
----
-
-## Common Board Pinouts
-
-### ESP32 Dev Board
-- Built-in LED typically on GPIO 2
-- Check your specific board's pinout
-- Usually marked as "LED", "STATUS", or similar
-
-### Standard ESP32 (30-pin)
-```
-        USB
-        ┌──────────┐
-    EN  │1  ....  30│GND
-    IO0 │2  ESP32  29│IO25
-   IO35 │3  DEV BD 28│IO26
-   IO34 │4         27│IO27
-   IO32 │5         26│IO14
-   IO35 │6         25│IO12
-   IO36 │7         24│IO13
-    3V3 │8         23│IO9  ← Button here
-    GND │9         22│IO10
-    IO23│10        21│IO11
-    IO22│11        20│D2
-    IO1 │12        19│D3
-    IO3 │13        18│CLK
-    IO16│14        17│CMD
-    IO17│15        16│D0
-    IO5 │16        15│D1
-    IO18│17        14│IO8
-    IO19│18        13│IO7
-    IO21│19        12│IO6
-    GND │20        11│EN
-        └──────────┘
+.\flash_receiver.ps1 -Port COM3
 ```
 
 ---
@@ -146,7 +104,7 @@ wmic logicaldisk get name
 
 ### Board Not Responding
 - Press the EN (Enable) button on the board
-- Check if the correct board is selected in ESP-IDF: `idf.py set-target esp32`
+- Make sure the correct board is selected in PlatformIO using `platformio.ini`
 
 ### Button Not Working
 - Check the wiring (should be GPIO 4 and GND)
