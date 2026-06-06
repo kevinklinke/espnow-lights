@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include "WLED_SolidBar.h"
+#include "../../shared/Message.h"
 
 static const int LED_GPIO = 8;
 static const uint8_t LED_DATA_PIN = 1;
@@ -9,19 +10,14 @@ static bool led_state = false;
 
 WLED_SolidBar<LED_DATA_PIN> wledBar(200);
 
-typedef struct {
-    uint8_t type;
-    uint32_t seq_num;
-} message_t;
-
 void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
-    if (len < sizeof(message_t)) {
+    if (len < sizeof(Message)) {
         Serial.printf("Received data too short: %d bytes\n", len);
         return;
     }
 
-    message_t msg;
-    memcpy(&msg, incomingData, sizeof(message_t));
+    Message msg;
+    memcpy(&msg, incomingData, sizeof(Message));
 
     led_state = !led_state;
     digitalWrite(LED_GPIO, led_state ? LOW : HIGH);
@@ -30,8 +26,18 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    Serial.printf("Received message from %s - Type: %u, Seq: %u - LED: %s\n",
-                  macStr, msg.type, msg.seq_num, led_state ? "ON" : "OFF");
+    const char *typeName = "UNKNOWN";
+    bool reverse = false;
+    if (msg.type == MessageType::NORMAL) {
+        typeName = "NORMAL";
+        reverse = false;
+    } else if (msg.type == MessageType::OPPOSITE) {
+        typeName = "OPPOSITE";
+        reverse = true;
+    }
+
+    Serial.printf("Received message from %s - Type: %s, Seq: %u - LED: %s\n",
+                  macStr, typeName, msg.seq_num, led_state ? "ON" : "OFF");
 
     // Generate vibrant random color
     uint8_t randomHue = random(0, 256);
@@ -48,9 +54,10 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     Serial.print("ms - Bar speed: ");
     Serial.println(barSpeed);
     
-    // Start bar from position 0
+    // Start bar from the selected strip end
     unsigned int barLengthPixels = 20; // TODO - put this in the message struct and set from sender
-    wledBar.startBar(barColor.red, barColor.green, barColor.blue, barLengthPixels, barSpeed, 0);
+    int startPosition = reverse ? 199 : 0;
+    wledBar.startBar(barColor.red, barColor.green, barColor.blue, barLengthPixels, barSpeed, startPosition, reverse);
 }
 
 void setup() {

@@ -28,11 +28,13 @@ espnow-lights/
 
 - `src/receiver/platformio.ini` — PlatformIO project configuration for the receiver board
 - `src/receiver/src/main.cpp` — Arduino code that initializes ESP-NOW and toggles the LED on packet reception
+- `src/shared/message.h` — shared ESP-NOW message payload definition used by both transmitter and receiver
 
 ## Transmitter
 
 - `src/transmitter/platformio.ini` — PlatformIO project configuration for the transmitter board
-- `src/transmitter/src/main.cpp` — Arduino code that sends ESP-NOW packets when the button is pressed
+- `src/transmitter/src/main.cpp` — Arduino code that sends ESP-NOW packets when buttons are pressed
+- `src/shared/message.h` — shared ESP-NOW message payload definition used by both transmitter and receiver
 
 ## Build scripts
 

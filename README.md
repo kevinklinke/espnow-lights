@@ -9,6 +9,7 @@ This project demonstrates ESP-NOW communication between two ESP32 boards using A
 
 - `src/receiver` — PlatformIO Arduino receiver project
 - `src/transmitter` — PlatformIO Arduino transmitter project
+- `src/shared` — shared message interface used by both transmitter and receiver
 - `flash_receiver.ps1` — build and upload receiver
 - `flash_transmitter.ps1` — build and upload transmitter
 - `HARDWARE.md` — hardware wiring and verification
@@ -51,10 +52,11 @@ python -m platformio device monitor --port COM3
 
 ## How It Works
 
-1. Transmitter reads button state on GPIO 4
-2. When pressed, it sends an ESP-NOW packet
-3. Receiver listens for ESP-NOW packets
-4. Receiver toggles LED on GPIO 2
+1. Transmitter reads buttons on GPIO 4 and GPIO 21
+2. GPIO 4 sends a normal forward wave message
+3. GPIO 21 sends an opposite-end wave message
+4. Receiver listens for ESP-NOW packets
+5. Receiver toggles LED on GPIO 2 and starts the light wave from the selected end of the strip
 
 ## Notes
 

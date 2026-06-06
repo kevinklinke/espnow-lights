@@ -1,18 +1,16 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
+#include "../../shared/Message.h"
 
 static const int BUTTON_GPIO = 4;
+static const int BUTTON2_GPIO = 21;
 static const int LED_GPIO = 2;
 static bool last_button_state = HIGH;
+static bool last_button2_state = HIGH;
 static uint32_t seq_num = 0;
 
 static uint8_t receiver_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-typedef struct {
-    uint8_t type;
-    uint32_t seq_num;
-} message_t;
 
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
     if (status == ESP_NOW_SEND_SUCCESS) {
@@ -32,6 +30,7 @@ void setup() {
     delay(1000);
 
     pinMode(BUTTON_GPIO, INPUT_PULLUP);
+    pinMode(BUTTON2_GPIO, INPUT_PULLUP);
     pinMode(LED_GPIO, OUTPUT);
     digitalWrite(LED_GPIO, LOW);
 
@@ -56,20 +55,22 @@ void setup() {
 
     Serial.println("ESP-NOW Transmitter Initialized");
     Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
-    Serial.println("Button on GPIO 4 - Press to send message");
+    Serial.println("Button on GPIO 4 - Normal wave");
+    Serial.println("Button on GPIO 21 - Opposite-end wave");
 }
 
 void loop() {
     bool current_button_state = digitalRead(BUTTON_GPIO);
+    bool current_button2_state = digitalRead(BUTTON2_GPIO);
 
     if (last_button_state == HIGH && current_button_state == LOW) {
-        message_t msg = { .type = 1, .seq_num = seq_num++ };
+        Message msg = { .type = MessageType::NORMAL, .seq_num = seq_num++ };
         esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&msg, sizeof(msg));
 
         if (result == ESP_OK) {
-            Serial.printf("Button pressed! Sent message #%u\n", msg.seq_num);
+            Serial.printf("Button 4 pressed! Sent normal wave #%u\n", msg.seq_num);
         } else {
-            Serial.printf("Failed to send message: %d\n", result);
+            Serial.printf("Failed to send normal wave: %d\n", result);
         }
 
         digitalWrite(LED_GPIO, HIGH);
@@ -77,8 +78,26 @@ void loop() {
         digitalWrite(LED_GPIO, LOW);
     }
 
-    Serial.printf("Button state: %s\n", current_button_state == LOW ? "PRESSED" : "RELEASED");
+    if (last_button2_state == HIGH && current_button2_state == LOW) {
+        Message msg = { .type = MessageType::OPPOSITE, .seq_num = seq_num++ };
+        esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&msg, sizeof(msg));
+
+        if (result == ESP_OK) {
+            Serial.printf("Button 21 pressed! Sent opposite wave #%u\n", msg.seq_num);
+        } else {
+            Serial.printf("Failed to send opposite wave: %d\n", result);
+        }
+
+        digitalWrite(LED_GPIO, HIGH);
+        delay(100);
+        digitalWrite(LED_GPIO, LOW);
+    }
+
+    Serial.printf("Button 4: %s, Button 21: %s\n",
+                  current_button_state == LOW ? "PRESSED" : "RELEASED",
+                  current_button2_state == LOW ? "PRESSED" : "RELEASED");
 
     last_button_state = current_button_state;
+    last_button2_state = current_button2_state;
     delay(50);
 }

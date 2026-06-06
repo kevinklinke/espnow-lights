@@ -32,40 +32,36 @@
 - Micro USB cable
 
 ### Pin Configuration
-- Button Input: **GPIO 4**
+- Button Inputs: **GPIO 4** and **GPIO 21**
+  - GPIO 4 sends a normal strip wave
+  - GPIO 21 sends a wave from the opposite end
 - USB for programming: Standard Micro USB port
-- Button will use internal pull-up (no external resistor needed)
+- Buttons use internal pull-up (no external resistor needed)
 
 ### Button Wiring Diagram
-```
-                          ESP32 Dev Board
-                          ┌──────────────────┐
-                    3.3V  │ 3V3              │
-                     ┌────┤ GND   GPIO 4     ├──────┐
-                     │    └──────────────────┘      │
-                     │                               │
-                 [Resistor 10k]              [Button]
-                     │                               │
-                     └───────────────────────────────┘
-                            GND
 
-Alternative (without external resistor - uses internal pull-up):
-                    GPIO 4  │  
-                          [Button]
-                            │
-                           GND
+```mermaid
+flowchart TD
+    subgraph ESP32[ESP32 Dev Board]
+        GPIO4([GPIO 4 pin])
+        GPIO21([GPIO 21 pin])
+        GND([GND pin])
+    end
+
+    Button4[[Button on GPIO 4]]
+    Button21[[Button on GPIO 21]]
+
+    GPIO4 --> Button4
+    GPIO21 --> Button21
+    Button4 --> GND
+    Button21 --> GND
 ```
 
 ### Connection Setup
-1. **Method 1 (Recommended - Internal Pull-up)**:
-   - Connect button between GPIO 4 and GND
-   - The code enables the internal pull-up resistor
-   
-2. **Method 2 (External Pull-up)**:
-   - Connect 10kΩ resistor between 3.3V and GPIO 4
-   - Connect button between GPIO 4 and GND
-
-3. Connect Micro USB cable for programming
+1. Connect a button between GPIO 4 and the board GND pin
+2. Connect a second button between GPIO 21 and the board GND pin
+3. The code enables internal pull-up resistors for both button pins
+4. Connect Micro USB cable for programming
 
 ### Verification
 - Check Device Manager for a COM port
