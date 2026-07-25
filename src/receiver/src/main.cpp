@@ -3,6 +3,7 @@
 #include <esp_now.h>
 #include "WLED_SolidBar.h"
 #include "../../shared/Message.h"
+#include "ReceiverConfig.h"
 
 static const int LED_GPIO = 8;
 static const uint8_t LED_DATA_PIN = 1;
@@ -18,6 +19,12 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
     Message msg;
     memcpy(&msg, incomingData, sizeof(Message));
+
+    if (msg.destination_id != kReceiverId) {
+        Serial.printf("Ignoring message for destination %u (this receiver is %u)\n",
+                      msg.destination_id, kReceiverId);
+        return;
+    }
 
     led_state = !led_state;
     digitalWrite(LED_GPIO, led_state ? LOW : HIGH);
@@ -36,8 +43,8 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         reverse = true;
     }
 
-    Serial.printf("Received message from %s - Type: %s, Seq: %u - LED: %s\n",
-                  macStr, typeName, msg.seq_num, led_state ? "ON" : "OFF");
+    Serial.printf("Received message from %s - Type: %s, Destination: %u, Seq: %u - LED: %s\n",
+                  macStr, typeName, msg.destination_id, msg.seq_num, led_state ? "ON" : "OFF");
 
     // Generate vibrant random color
     uint8_t randomHue = random(0, 256);

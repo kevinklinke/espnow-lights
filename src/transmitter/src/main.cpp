@@ -6,6 +6,8 @@
 static const int BUTTON_GPIO = 4;
 static const int BUTTON2_GPIO = 21;
 static const int LED_GPIO = 2;
+static const uint8_t DESTINATION_1 = 1;
+static const uint8_t DESTINATION_2 = 2;
 static bool last_button_state = HIGH;
 static bool last_button2_state = HIGH;
 static uint32_t seq_num = 0;
@@ -55,8 +57,8 @@ void setup() {
 
     Serial.println("ESP-NOW Transmitter Initialized");
     Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
-    Serial.println("Button on GPIO 4 - Normal wave");
-    Serial.println("Button on GPIO 21 - Opposite-end wave");
+    Serial.println("Button on GPIO 4 - Send to receiver 2 (opposite)");
+    Serial.println("Button on GPIO 21 - Send to receiver 1 (normal)");
 }
 
 void loop() {
@@ -64,13 +66,13 @@ void loop() {
     bool current_button2_state = digitalRead(BUTTON2_GPIO);
 
     if (last_button_state == HIGH && current_button_state == LOW) {
-        Message msg = { .type = MessageType::NORMAL, .seq_num = seq_num++ };
+        Message msg = { .type = MessageType::OPPOSITE, .destination_id = DESTINATION_2, .seq_num = seq_num++ };
         esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&msg, sizeof(msg));
 
         if (result == ESP_OK) {
-            Serial.printf("Button 4 pressed! Sent normal wave #%u\n", msg.seq_num);
+            Serial.printf("Button 4 pressed! Sent opposite wave to receiver %u (#%u)\n", msg.destination_id, msg.seq_num);
         } else {
-            Serial.printf("Failed to send normal wave: %d\n", result);
+            Serial.printf("Failed to send opposite wave: %d\n", result);
         }
 
         digitalWrite(LED_GPIO, HIGH);
@@ -79,13 +81,13 @@ void loop() {
     }
 
     if (last_button2_state == HIGH && current_button2_state == LOW) {
-        Message msg = { .type = MessageType::OPPOSITE, .seq_num = seq_num++ };
+        Message msg = { .type = MessageType::NORMAL, .destination_id = DESTINATION_1, .seq_num = seq_num++ };
         esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&msg, sizeof(msg));
 
         if (result == ESP_OK) {
-            Serial.printf("Button 21 pressed! Sent opposite wave #%u\n", msg.seq_num);
+            Serial.printf("Button 21 pressed! Sent normal wave to receiver %u (#%u)\n", msg.destination_id, msg.seq_num);
         } else {
-            Serial.printf("Failed to send opposite wave: %d\n", result);
+            Serial.printf("Failed to send normal wave: %d\n", result);
         }
 
         digitalWrite(LED_GPIO, HIGH);
