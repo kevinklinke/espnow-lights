@@ -5,11 +5,31 @@
 #include "../../shared/Message.h"
 #include "ReceiverConfig.h"
 
-static const int LED_GPIO = 8;
-static const uint8_t LED_DATA_PIN = 1;
+// LED pin can be overridden by defining `LED_GPIO_PIN` in ReceiverConfig.local.h
+#ifndef LED_GPIO_PIN
+#define LED_GPIO_PIN 8
+#endif
+static const int LED_GPIO = LED_GPIO_PIN;
+
+// LED data pin can be overridden by defining `LED_DATA_PIN` in ReceiverConfig.local.h
+#ifndef LED_DATA_PIN
+#define LED_DATA_PIN 1
+#endif
+// Use a different name for the runtime variable to avoid colliding with the macro
+static const uint8_t LED_DATA_GPIO = LED_DATA_PIN;
 static bool led_state = false;
 
-WLED_SolidBar<LED_DATA_PIN> wledBar(200);
+// LED pixel count can be overridden via ReceiverConfig.local.h
+#ifndef LED_PIXEL_COUNT
+#define LED_PIXEL_COUNT 200
+#endif
+
+WLED_SolidBar<LED_DATA_PIN> wledBar(LED_PIXEL_COUNT);
+
+// Optional compile-time override for bar speed (ms per step). If 0, runtime mapping from press duration is used.
+#ifndef LED_BAR_SPEED_MS
+#define LED_BAR_SPEED_MS 40
+#endif
 
 void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     if (len < sizeof(Message)) {
@@ -54,8 +74,9 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     
     // Map press duration to bar speed
     unsigned long pressDurationMs = 100; // TODO - put this in the message struct and set from sender
-    uint16_t barSpeed = map(constrain(pressDurationMs, 100, 2000), 100, 2000, 40, 1);
-    
+    // uint16_t barSpeed = map(constrain(pressDurationMs, 100, 2000), 100, 2000, 40, 1);
+    uint16_t barSpeed = LED_BAR_SPEED_MS;
+
     Serial.print("Button released after ");
     Serial.print(pressDurationMs);
     Serial.print("ms - Bar speed: ");
@@ -63,7 +84,7 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     
     // Start bar from the selected strip end
     unsigned int barLengthPixels = 20; // TODO - put this in the message struct and set from sender
-    int startPosition = reverse ? 199 : 0;
+    int startPosition = reverse ? LED_PIXEL_COUNT - 1 : 0;
     wledBar.startBar(barColor.red, barColor.green, barColor.blue, barLengthPixels, barSpeed, startPosition, reverse);
 }
 

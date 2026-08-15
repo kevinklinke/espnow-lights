@@ -3,7 +3,7 @@
 #include "WLED_Bar.h"
 #include "../../shared/StaticVector.h"
 
-#define BRIGHTNESS 250
+#define BRIGHTNESS 255
 
 template <uint8_t TDataPin>
 class WLED_SolidBar {

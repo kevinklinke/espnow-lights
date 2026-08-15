@@ -81,13 +81,13 @@ void loop() {
     }
 
     if (last_button2_state == HIGH && current_button2_state == LOW) {
-        Message msg = { .type = MessageType::NORMAL, .destination_id = DESTINATION_1, .seq_num = seq_num++ };
+        Message msg = { .type = MessageType::OPPOSITE, .destination_id = DESTINATION_1, .seq_num = seq_num++ };
         esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&msg, sizeof(msg));
 
         if (result == ESP_OK) {
-            Serial.printf("Button 21 pressed! Sent normal wave to receiver %u (#%u)\n", msg.destination_id, msg.seq_num);
+            Serial.printf("Button 21 pressed! Sent opposite wave to receiver %u (#%u)\n", msg.destination_id, msg.seq_num);
         } else {
-            Serial.printf("Failed to send normal wave: %d\n", result);
+            Serial.printf("Failed to send opposite wave: %d\n", result);
         }
 
         digitalWrite(LED_GPIO, HIGH);
