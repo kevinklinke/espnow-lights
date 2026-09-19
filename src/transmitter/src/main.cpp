@@ -25,6 +25,21 @@ static void setLedState(bool on) {
     digitalWrite(LED_GPIO, TRANSMITTER_LED_ACTIVE_LOW ? (on ? LOW : HIGH) : (on ? HIGH : LOW));
 }
 
+static void blinkStartupId(uint8_t id) {
+    if (id == 0) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < id; ++i) {
+        setLedState(true);
+        delay(180);
+        setLedState(false);
+        delay(180);
+    }
+
+    delay(400);
+}
+
 static uint8_t receiver_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -47,6 +62,7 @@ void setup() {
     pinMode(BUTTON_GPIO, INPUT_PULLUP);
     pinMode(LED_GPIO, OUTPUT);
     setLedState(false);
+    blinkStartupId(DESTINATION_ID);
 
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();

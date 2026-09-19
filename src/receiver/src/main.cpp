@@ -19,6 +19,26 @@ static const int LED_GPIO = LED_GPIO_PIN;
 static const uint8_t LED_DATA_GPIO = LED_DATA_PIN;
 static bool led_state = false;
 
+static void setReceiverLed(bool on) {
+    digitalWrite(LED_GPIO, on ? LOW : HIGH);
+    led_state = on;
+}
+
+static void blinkStartupId(uint8_t id) {
+    if (id == 0) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < id; ++i) {
+        setReceiverLed(true);
+        delay(180);
+        setReceiverLed(false);
+        delay(180);
+    }
+
+    delay(400);
+}
+
 // LED pixel count can be overridden via ReceiverConfig.local.h
 #ifndef LED_PIXEL_COUNT
 #define LED_PIXEL_COUNT 200
@@ -130,7 +150,8 @@ void setup() {
     delay(1000);
 
     pinMode(LED_GPIO, OUTPUT);
-    digitalWrite(LED_GPIO, led_state ? LOW : HIGH);
+    setReceiverLed(false);
+    blinkStartupId(kReceiverId);
 
     wledBar.begin();
 
