@@ -48,7 +48,7 @@ WLED_SolidBar<LED_DATA_PIN> wledBar(LED_PIXEL_COUNT);
 
 // Optional compile-time override for bar speed (ms per step). If 0, runtime mapping from press duration is used.
 #ifndef LED_BAR_SPEED_MS
-#define LED_BAR_SPEED_MS 40
+#define LED_BAR_SPEED_MS 4
 #endif
 
 // Transient override state
