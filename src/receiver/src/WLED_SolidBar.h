@@ -17,10 +17,18 @@ public:
   void update();
   // Display the current LED array (calls FastLED.show)
   void display();
+  // Copy an ambient LED frame into the internal LED buffer. Caller owns the buffer.
+  void applyAmbient(const CRGB* ambient);
+  // Returns true when there are active bars animating
+  bool hasActiveBars() const;
+  // Supply per-pixel twinkle amplitudes (0..255). When provided, bars will
+  // incorporate twinkle amplitude into the bar color (twinkle boosts bar brightness
+  // using the bar's hue), so twinkles enhance bar brightness rather than replace it.
+  void setTwinkleLevels(uint8_t* twinkleLevels, int length);
   // Start a solid bar (multiple bars allowed simultaneously)
   // barLengthPixels: how many pixels the bar occupies (solid, no fading)
   // startPixelPosition: optional starting position for the bar (default 0)
-  void startBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels = 10, unsigned int speedMs = 20, int startPixelPosition = 0, bool reverse = false);
+  void startBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels = 10, unsigned int speedMs = 20, int startPixelPosition = 0, bool reverse = false, bool solidBrightness = false);
   
   // Show charging glow effect (call this while button is pressed)
   // chargePixels: number of pixels currently charged (0-20)
@@ -34,6 +42,8 @@ private:
   StaticVector<Bar, 32> bars_;
   CRGB *ledArray_;
   int ledCount_;
+  uint8_t* twinkleLevels_ = nullptr;
+  int twinkleLength_ = 0;
   
   // Helper: create a bar with the given parameters
   Bar createBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels, unsigned int speedMs, int startPixelPosition, bool reverse);
@@ -67,7 +77,7 @@ void WLED_SolidBar<TDataPin>::begin() {
 }
 
 template <uint8_t TDataPin>
-Bar WLED_SolidBar<TDataPin>::createBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels, unsigned int speedMs, int startPixelPosition, bool reverse) {
+  Bar WLED_SolidBar<TDataPin>::createBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels, unsigned int speedMs, int startPixelPosition, bool reverse) {
   Bar bar;
   bar.reverse = reverse;
   bar.ledCount = ledCount_;
@@ -76,6 +86,7 @@ Bar WLED_SolidBar<TDataPin>::createBar(uint8_t red, uint8_t green, uint8_t blue,
   bar.barLengthPixels = barLengthPixels;
   bar.speedMs = speedMs;
   bar.lastUpdateMs = millis();
+  bar.solidBrightness = false;
   return bar;
 }
 
@@ -104,17 +115,40 @@ void WLED_SolidBar<TDataPin>::drawBar(const Bar& bar) {
   for (int pixelIndex = pixelStart; pixelIndex <= pixelEnd; ++pixelIndex) {
     int distanceFromLeadingEdge = abs(pixelIndex - leadingEdgePixel);
     int remainingDistance = visibleBarLength - distanceFromLeadingEdge;
-    uint8_t brightnessPercent = (remainingDistance * remainingDistance * 255) / (visibleBarLength * visibleBarLength);
-    
+    uint8_t brightnessPercent;
+    if (bar.solidBrightness) {
+      brightnessPercent = 255; // constant full brightness across the bar
+    } else {
+      brightnessPercent = (remainingDistance * remainingDistance * 255) / (visibleBarLength * visibleBarLength);
+    }
+
     CRGB fadedColor = bar.color;
     fadedColor.nscale8(brightnessPercent);
+
+    // If a per-pixel twinkle amplitude is supplied, boost the bar color using
+    // the twinkle amplitude so twinkles increase the bar's brightness in the
+    // bar's hue instead of replacing it with white.
+    if (twinkleLevels_ && pixelIndex < twinkleLength_) {
+      uint8_t tw = twinkleLevels_[pixelIndex];
+      if (tw > 0) {
+        CRGB twinkleColor = bar.color;
+        twinkleColor.nscale8_video(tw);
+        // Merge by per-channel max so twinkle only brightens the bar color where needed.
+        fadedColor.r = max(fadedColor.r, twinkleColor.r);
+        fadedColor.g = max(fadedColor.g, twinkleColor.g);
+        fadedColor.b = max(fadedColor.b, twinkleColor.b);
+      }
+    }
+
+    // Overwrite ambient pixel with the bar (possibly boosted by twinkle)
     ledArray_[pixelIndex] = fadedColor;
   }
 }
 
 template <uint8_t TDataPin>
-void WLED_SolidBar<TDataPin>::startBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels, unsigned int speedMs, int startPixelPosition, bool reverse) {
+void WLED_SolidBar<TDataPin>::startBar(uint8_t red, uint8_t green, uint8_t blue, unsigned int barLengthPixels, unsigned int speedMs, int startPixelPosition, bool reverse, bool solidBrightness) {
   Bar newBar = createBar(red, green, blue, barLengthPixels, speedMs, startPixelPosition, reverse);
+  newBar.solidBrightness = solidBrightness;
   
   if (bars_.full()) {
     bars_.erase(0);  // Remove oldest bar (FIFO)
@@ -126,10 +160,8 @@ template <uint8_t TDataPin>
 void WLED_SolidBar<TDataPin>::update() {
   unsigned long currentTimeMs = millis();
 
-  // Clear all LEDs
-  for (int ledIndex = 0; ledIndex < ledCount_; ++ledIndex) {
-    ledArray_[ledIndex] = CRGB::Black;
-  }
+  // NOTE: ambient content should be applied by caller via applyAmbient().
+  // Bars are drawn on top of whatever is currently in ledArray_.
 
   // Update and draw bars (iterate in reverse to safely erase)
   for (int barIndex = (int)bars_.size() - 1; barIndex >= 0; --barIndex) {
@@ -144,6 +176,25 @@ void WLED_SolidBar<TDataPin>::update() {
 template <uint8_t TDataPin>
 void WLED_SolidBar<TDataPin>::display() {
   FastLED.show();
+}
+
+template <uint8_t TDataPin>
+void WLED_SolidBar<TDataPin>::applyAmbient(const CRGB* ambient) {
+  if (!ambient) return;
+  for (int i = 0; i < ledCount_; ++i) {
+    ledArray_[i] = ambient[i];
+  }
+}
+
+template <uint8_t TDataPin>
+bool WLED_SolidBar<TDataPin>::hasActiveBars() const {
+  return bars_.size() > 0;
+}
+
+template <uint8_t TDataPin>
+void WLED_SolidBar<TDataPin>::setTwinkleLevels(uint8_t* twinkleLevels, int length) {
+  twinkleLevels_ = twinkleLevels;
+  twinkleLength_ = length;
 }
 
 template <uint8_t TDataPin>

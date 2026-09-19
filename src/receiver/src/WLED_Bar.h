@@ -10,6 +10,7 @@ struct Bar {
   unsigned long lastUpdateMs;
   int ledCount;
   bool reverse;
+  bool solidBrightness = false;
 
   int adjustStartPosition(int startPixelPosition) const;
   int getNextPixelPosition() const;

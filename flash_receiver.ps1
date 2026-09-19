@@ -17,25 +17,31 @@ try {
     $configLines += "#pragma once"
     $configLines += "#define RECEIVER_ID $ReceiverId"
 
-    # If the user provided an explicit LED GPIO, include it. Otherwise, if targeting esp32dev, default to GPIO4.
+    # If the user provided an explicit LED GPIO, include it. Otherwise, apply reasonable board defaults.
     if ($LedGpio -ne 0) {
         $configLines += "#define LED_GPIO_PIN $LedGpio"
     } elseif ($Env -eq "esp32dev") {
         $configLines += "#define LED_GPIO_PIN 4"
+    } elseif ($Env -eq "esp32-s2") {
+        $configLines += "#define LED_GPIO_PIN 8"
     }
 
-    # Allow configuring LED data pin (used by the LED library). If not provided, default to 5 for esp32dev.
+    # Allow configuring LED data pin (used by the LED library). If not provided, apply reasonable board defaults.
     if ($DataPin -ne 0) {
         $configLines += "#define LED_DATA_PIN $DataPin"
     } elseif ($Env -eq "esp32dev") {
         $configLines += "#define LED_DATA_PIN 5"
+    } elseif ($Env -eq "esp32-s2") {
+        $configLines += "#define LED_DATA_PIN 38"
     }
 
-    # Allow configuring number of pixels on the strand
+    # Allow configuring number of pixels on the strand.
     if ($PixelCount -ne 0) {
         $configLines += "#define LED_PIXEL_COUNT $PixelCount"
     } elseif ($Env -eq "esp32dev") {
         # Default for this specific dev board
+        $configLines += "#define LED_PIXEL_COUNT 300"
+    } elseif ($Env -eq "esp32-s2") {
         $configLines += "#define LED_PIXEL_COUNT 300"
     }
 
