@@ -7,14 +7,23 @@
 #define TRANSMITTER_LED_GPIO 8
 #endif
 
+#ifndef TRANSMITTER_ID
+#define TRANSMITTER_ID 1
+#endif
+
+#ifndef TRANSMITTER_LED_ACTIVE_LOW
+#define TRANSMITTER_LED_ACTIVE_LOW 1
+#endif
+
 static const int BUTTON_GPIO = 4;
-static const int BUTTON2_GPIO = 21;
 static const int LED_GPIO = TRANSMITTER_LED_GPIO;
-static const uint8_t DESTINATION_1 = 1;
-static const uint8_t DESTINATION_2 = 2;
+static const uint8_t DESTINATION_ID = static_cast<uint8_t>(TRANSMITTER_ID);
 static bool last_button_state = HIGH;
-static bool last_button2_state = HIGH;
 static uint32_t seq_num = 0;
+
+static void setLedState(bool on) {
+    digitalWrite(LED_GPIO, TRANSMITTER_LED_ACTIVE_LOW ? (on ? LOW : HIGH) : (on ? HIGH : LOW));
+}
 
 static uint8_t receiver_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -36,9 +45,8 @@ void setup() {
     delay(1000);
 
     pinMode(BUTTON_GPIO, INPUT_PULLUP);
-    pinMode(BUTTON2_GPIO, INPUT_PULLUP);
     pinMode(LED_GPIO, OUTPUT);
-    digitalWrite(LED_GPIO, LOW);
+    setLedState(false);
 
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
@@ -61,18 +69,16 @@ void setup() {
 
     Serial.println("ESP-NOW Transmitter Initialized");
     Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
-    Serial.println("Button on GPIO 4 - Send to receiver 1");
-    Serial.println("Button on GPIO 21 - Send to receiver 2)");
+    Serial.printf("Single button on GPIO 4 sends FLASH to receiver ID %u\n", DESTINATION_ID);
 }
 
 void loop() {
     bool current_button_state = digitalRead(BUTTON_GPIO);
-    bool current_button2_state = digitalRead(BUTTON2_GPIO);
 
     if (last_button_state == HIGH && current_button_state == LOW) {
         Trigger trig;
         trig.cmd = TriggerCmd::FLASH;
-        trig.destination_id = DESTINATION_1;
+        trig.destination_id = DESTINATION_ID;
         trig.priority = 0;
         trig.reserved = 0;
         trig.seq_num = seq_num++;
@@ -80,41 +86,18 @@ void loop() {
         esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&trig, sizeof(trig));
 
         if (result == ESP_OK) {
-            Serial.printf("Button 4 pressed! Sent BAR trigger to dest %u (#%u)\n", trig.destination_id, trig.seq_num);
+            Serial.printf("Button pressed! Sent FLASH trigger to dest %u (#%u)\n", trig.destination_id, trig.seq_num);
         } else {
-            Serial.printf("Failed to send BAR trigger: %d\n", result);
+            Serial.printf("Failed to send FLASH trigger: %d\n", result);
         }
 
-        digitalWrite(LED_GPIO, HIGH);
+        setLedState(true);
         delay(100);
-        digitalWrite(LED_GPIO, LOW);
+        setLedState(false);
     }
 
-    if (last_button2_state == HIGH && current_button2_state == LOW) {
-        Trigger trig;
-        trig.cmd = TriggerCmd::BAR;
-        trig.destination_id = DESTINATION_2;
-        trig.priority = 0;
-        trig.reserved = 0;
-        trig.seq_num = seq_num++;
-
-        esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&trig, sizeof(trig));
-
-        if (result == ESP_OK) {
-            Serial.printf("Button 21 pressed! Sent BAR trigger to dest %u (#%u)\n", trig.destination_id, trig.seq_num);
-        } else {
-            Serial.printf("Failed to send BAR trigger: %d\n", result);
-        }
-        digitalWrite(LED_GPIO, HIGH);
-        delay(100);
-        digitalWrite(LED_GPIO, LOW);
-    }
-
-    Serial.printf("Button 4: %s, Button 21: %s\n",
-                  current_button_state == LOW ? "PRESSED" : "RELEASED",
-                  current_button2_state == LOW ? "PRESSED" : "RELEASED");
+    Serial.printf("Button 4: %s\n", current_button_state == LOW ? "PRESSED" : "RELEASED");
 
     last_button_state = current_button_state;
-    last_button2_state = current_button2_state;
     delay(50);
 }
