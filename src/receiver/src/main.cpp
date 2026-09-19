@@ -19,9 +19,32 @@ static const int LED_GPIO = LED_GPIO_PIN;
 static const uint8_t LED_DATA_GPIO = LED_DATA_PIN;
 static bool led_state = false;
 
+#ifndef RECEIVER_DEBUG_MODE
+#define RECEIVER_DEBUG_MODE true
+#endif
+static const bool kReceiverDebugMode = RECEIVER_DEBUG_MODE;
+static uint32_t debugFlashUntilMs = 0;
+
+// LED pixel count can be overridden via ReceiverConfig.local.h
+#ifndef LED_PIXEL_COUNT
+#define LED_PIXEL_COUNT 200
+#endif
+
 static void setReceiverLed(bool on) {
     digitalWrite(LED_GPIO, on ? LOW : HIGH);
     led_state = on;
+}
+
+static void flashFirstPixel(uint8_t red, uint8_t green, uint8_t blue, uint32_t durationMs) {
+    if (LED_PIXEL_COUNT == 0) {
+        return;
+    }
+
+    FastLED[0][0] = CRGB(red, green, blue);
+    FastLED.show();
+    delay(durationMs);
+    FastLED[0][0] = CRGB::Black;
+    FastLED.show();
 }
 
 static void blinkStartupId(uint8_t id) {
@@ -30,25 +53,18 @@ static void blinkStartupId(uint8_t id) {
     }
 
     for (uint8_t i = 0; i < id; ++i) {
-        setReceiverLed(true);
-        delay(180);
-        setReceiverLed(false);
-        delay(180);
+        flashFirstPixel(255, 255, 255, 120);
+        delay(120);
     }
 
     delay(400);
 }
 
-// LED pixel count can be overridden via ReceiverConfig.local.h
-#ifndef LED_PIXEL_COUNT
-#define LED_PIXEL_COUNT 200
-#endif
-
 WLED_SolidBar<LED_DATA_PIN> wledBar(LED_PIXEL_COUNT);
 
 // Optional compile-time override for bar speed (ms per step). If 0, runtime mapping from press duration is used.
 #ifndef LED_BAR_SPEED_MS
-#define LED_BAR_SPEED_MS 4
+#define LED_BAR_SPEED_MS 1
 #endif
 
 // Transient override state
@@ -88,6 +104,10 @@ void onDataRecv(const uint8_t* mac, const uint8_t* incomingData, int len) {
     if (trig.destination_id != kReceiverId) {
         Serial.printf("Ignoring trigger for destination %u (this receiver is %u)\n", trig.destination_id, kReceiverId);
         return;
+    }
+
+    if (kReceiverDebugMode) {
+        debugFlashUntilMs = millis() + 150;
     }
 
     switch (trig.cmd) {
@@ -151,9 +171,10 @@ void setup() {
 
     pinMode(LED_GPIO, OUTPUT);
     setReceiverLed(false);
-    blinkStartupId(kReceiverId);
 
+    // Startup ID is always shown on the first LED pixel so it works on all receivers.
     wledBar.begin();
+    blinkStartupId(kReceiverId);
 
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
@@ -196,6 +217,10 @@ void loop() {
 
         // Decay the twinkle for next frame
         twinkleLevel[i] = qsub8(twinkleLevel[i], decayPerFrame);
+    }
+
+    if (kReceiverDebugMode && now < debugFlashUntilMs) {
+        ambientBuffer[0] = CRGB::White;
     }
 
     // Apply ambient background into the bar's internal buffer (bars draw on top)
