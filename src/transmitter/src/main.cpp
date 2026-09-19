@@ -85,7 +85,7 @@ void setup() {
 
     Serial.println("ESP-NOW Transmitter Initialized");
     Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
-    Serial.printf("Single button on GPIO 4 sends BAR to receiver ID %u\n", DESTINATION_ID);
+    Serial.printf("Single button on GPIO 4 sends FLASH to receiver ID %u\n", DESTINATION_ID);
 }
 
 void loop() {
@@ -93,7 +93,7 @@ void loop() {
 
     if (last_button_state == HIGH && current_button_state == LOW) {
         Trigger trig;
-        trig.cmd = TriggerCmd::BAR;
+        trig.cmd = TriggerCmd::FLASH;
         trig.destination_id = DESTINATION_ID;
         trig.priority = 0;
         trig.reserved = 0;
@@ -102,9 +102,9 @@ void loop() {
         esp_err_t result = esp_now_send(receiver_mac, (uint8_t *)&trig, sizeof(trig));
 
         if (result == ESP_OK) {
-            Serial.printf("Button pressed! Sent BAR trigger to dest %u (#%u)\n", trig.destination_id, trig.seq_num);
+            Serial.printf("Button pressed! Sent FLASH trigger to dest %u (#%u)\n", trig.destination_id, trig.seq_num);
         } else {
-            Serial.printf("Failed to send BAR trigger: %d\n", result);
+            Serial.printf("Failed to send FLASH trigger: %d\n", result);
         }
 
         setLedState(true);
