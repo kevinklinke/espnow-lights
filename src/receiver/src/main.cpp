@@ -118,7 +118,7 @@ void onDataRecv(const uint8_t* mac, const uint8_t* incomingData, int len) {
             if (barLengthPixels < 10) barLengthPixels = 10;
             if (barLengthPixels > 100) barLengthPixels = 100;
             unsigned int steps = LED_PIXEL_COUNT + barLengthPixels + 2;
-            const unsigned int desiredMs = 450; // faster wipe
+            const unsigned int desiredMs = 100; // faster wipe
             unsigned int speedMs = desiredMs / steps;
             if (speedMs < 1) speedMs = 1;
 
