@@ -1,9 +1,12 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
-#include "WLED_SolidBar.h"
-#include "../../shared/Message.h"
 #include "ReceiverConfig.h"
+#include "CurtainWave.h"
+#if RECEIVER_ID != 1
+#include "WLED_SolidBar.h"
+#endif
+#include "../../shared/Message.h"
 
 // LED pin can be overridden by defining `LED_GPIO_PIN` in ReceiverConfig.local.h
 #ifndef LED_GPIO_PIN
@@ -19,15 +22,13 @@ static const int LED_GPIO = LED_GPIO_PIN;
 static const uint8_t LED_DATA_GPIO = LED_DATA_PIN;
 static bool led_state = false;
 
-#ifndef RECEIVER_DEBUG_MODE
-#define RECEIVER_DEBUG_MODE true
-#endif
-static const bool kReceiverDebugMode = RECEIVER_DEBUG_MODE;
-static uint32_t debugFlashUntilMs = 0;
-
 // LED pixel count can be overridden via ReceiverConfig.local.h
 #ifndef LED_PIXEL_COUNT
+#if RECEIVER_ID == 1
+#define LED_PIXEL_COUNT CURTAIN_PIXEL_COUNT
+#else
 #define LED_PIXEL_COUNT 200
+#endif
 #endif
 
 static void setReceiverLed(bool on) {
@@ -60,12 +61,18 @@ static void blinkStartupId(uint8_t id) {
     delay(400);
 }
 
-WLED_SolidBar<LED_DATA_PIN> wledBar(LED_PIXEL_COUNT);
-
 // Optional compile-time override for bar speed (ms per step). If 0, runtime mapping from press duration is used.
 #ifndef LED_BAR_SPEED_MS
 #define LED_BAR_SPEED_MS 12
 #endif
+
+#if RECEIVER_ID == 1
+static_assert(LED_PIXEL_COUNT == CURTAIN_PIXEL_COUNT,
+              "Receiver 1 curtain geometry requires LED_PIXEL_COUNT to be 600");
+CurtainWave<LED_DATA_PIN> curtainWave(LED_BAR_SPEED_MS);
+#else
+WLED_SolidBar<LED_DATA_PIN> wledBar(LED_PIXEL_COUNT);
+static CRGB ambientBuffer[LED_PIXEL_COUNT] = {};
 
 // Transient override state
 enum TransientType : uint8_t {
@@ -81,9 +88,7 @@ struct TransientState {
     TransientType type = TRANSIENT_NONE;
     uint8_t intensity = 0;
 } transient;
-
-// Ambient buffer (caller-owned)
-static CRGB ambientBuffer[LED_PIXEL_COUNT];
+#endif
 
 void onDataRecv(const uint8_t* mac, const uint8_t* incomingData, int len) {
     if (len < sizeof(Trigger)) {
@@ -106,9 +111,12 @@ void onDataRecv(const uint8_t* mac, const uint8_t* incomingData, int len) {
         return;
     }
 
-    if (kReceiverDebugMode) {
-        debugFlashUntilMs = millis() + 150;
-    }
+#if RECEIVER_ID == 1
+    const CRGB waveColor = CHSV(random(0, 256), random(200, 256), random(200, 256));
+    curtainWave.startWave(waveColor);
+    Serial.printf("Started curtain wave for receiver %u, seq=%u\n", trig.destination_id, trig.seq_num);
+    return;
+#else
 
     switch (trig.cmd) {
         case TriggerCmd::FLASH: {
@@ -163,6 +171,7 @@ void onDataRecv(const uint8_t* mac, const uint8_t* incomingData, int len) {
             Serial.println("Unknown trigger cmd");
             break;
     }
+#endif
 }
 
 void setup() {
@@ -173,7 +182,11 @@ void setup() {
     setReceiverLed(false);
 
     // Startup ID is always shown on the first LED pixel so it works on all receivers.
+#if RECEIVER_ID == 1
+    curtainWave.begin();
+#else
     wledBar.begin();
+#endif
     blinkStartupId(kReceiverId);
 
     WiFi.mode(WIFI_STA);
@@ -194,41 +207,12 @@ void setup() {
 void loop() {
     delay(2);
 
-    uint32_t now = millis();
-
-    // Build ambient white shimmer (always on). Transient bars will be blended on top.
-    // Implement per-pixel, independent twinkles: random pixel spikes that decay over time.
-    const uint8_t baseBri = 1; // slightly dimmer ambient base
-    // persistent per-pixel state for twinkle amplitude (0..255)
-    static uint8_t twinkleLevel[LED_PIXEL_COUNT] = {0};
-    const uint8_t decayPerFrame = 1; // how fast twinkles fade (1 = very slow)
-    const uint8_t triggerChance = 1; // approx chance (out of 256) per pixel per frame (very rare)
-
-    for (int i = 0; i < LED_PIXEL_COUNT; ++i) {
-        // Occasionally trigger a new twinkle on this pixel
-        if (random8() < triggerChance) {
-            uint8_t peak = random8(160, 255); // bright peak for the spike
-            if (peak > twinkleLevel[i]) twinkleLevel[i] = peak;
-        }
-
-        // Compute final brightness: tiny base plus current twinkle level
-        uint8_t bri = qadd8(baseBri, twinkleLevel[i]);
-        ambientBuffer[i] = CRGB(bri, bri, bri);
-
-        // Decay the twinkle for next frame
-        twinkleLevel[i] = qsub8(twinkleLevel[i], decayPerFrame);
-    }
-
-    if (kReceiverDebugMode && now < debugFlashUntilMs) {
-        ambientBuffer[0] = CRGB::White;
-    }
-
-    // Apply ambient background into the bar's internal buffer (bars draw on top)
+#if RECEIVER_ID == 1
+    curtainWave.update();
+#else
+    // Keep the legacy linear-strip effects for other receiver IDs, but leave
+    // the background black instead of generating the ambient shimmer.
     wledBar.applyAmbient(ambientBuffer);
-
-    // Provide per-pixel twinkle amplitudes to the bar renderer so bars can be
-    // brightened by twinkles (preserving bar hue). Then update/draw bars.
-    wledBar.setTwinkleLevels(twinkleLevel, LED_PIXEL_COUNT);
     wledBar.update();
 
     // After update, check transient lifecycle
@@ -246,4 +230,5 @@ void loop() {
 
     // Display all LEDs once per frame
     wledBar.display();
+#endif
 }

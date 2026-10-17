@@ -1,7 +1,7 @@
 param(
     [string]$Port = "",
     [int]$ReceiverId = 1,
-    [string]$Env = "esp32-c3",
+    [string]$Env = "esp32-s2",
     [int]$LedGpio = 0,
     [int]$DataPin = 0,
     [int]$PixelCount = 0,
@@ -38,6 +38,9 @@ try {
     # Allow configuring number of pixels on the strand.
     if ($PixelCount -ne 0) {
         $configLines += "#define LED_PIXEL_COUNT $PixelCount"
+    } elseif ($ReceiverId -eq 1) {
+        # Receiver 1 is the 10-strand by 60-pixel curtain.
+        $configLines += "#define LED_PIXEL_COUNT 600"
     } elseif ($Env -eq "esp32dev") {
         # Default for this specific dev board
         $configLines += "#define LED_PIXEL_COUNT 300"
