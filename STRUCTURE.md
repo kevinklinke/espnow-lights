@@ -44,7 +44,8 @@ espnow-lights/
 ## WLED Transmitter
 
 - `src/wled-transmitter/platformio.ini` — ESP32-C3 PlatformIO environment
-- `src/wled-transmitter/src/main.cpp` — Wi-Fi button that sends a preset-selection request to WLED
+- `src/wled-transmitter/src/main.cpp` — GPIO 4 button loop that calls the WLED preset controller
+- `src/wled-transmitter/src/WledPresetController.h` and `.cpp` — Wi-Fi connection, preset cache, random selection, and WLED HTTP requests
 - `src/wled-transmitter/src/config.sample.h` — template for local Wi-Fi and WLED hostname settings
 - `flash_wled_transmitter.ps1` — builds and uploads the WLED transmitter
 

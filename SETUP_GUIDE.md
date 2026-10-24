@@ -43,6 +43,11 @@ an ESP32-C3:
 ```powershell
 .\flash_wled_transmitter.ps1 -Port COM5
 ```
+On a button press, the WLED transmitter chooses a random saved preset while
+excluding the last-known active preset when another option exists. It refreshes
+the preset list when needed and caches it for 30 seconds, so a refresh can make
+that button press slower. If a refresh fails, it uses the previous cached list
+when available.
 
 ### 6. Monitor the serial output
 ```powershell

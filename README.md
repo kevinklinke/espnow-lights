@@ -70,7 +70,7 @@ python -m platformio device monitor --port COM3
 3. GPIO 21 sends an opposite-end wave message
 4. The receiver listens for ESP-NOW packets
 5. The receiver toggles LED on GPIO 2 and starts the light wave from the selected end of the strip
-6. Separately, the WLED transmitter connects to Wi-Fi and sends a preset-selection request when its GPIO 4 button is pressed
+6. Separately, the WLED transmitter connects to Wi-Fi and selects a random saved WLED preset when its GPIO 4 button is pressed. It caches the preset list for 30 seconds and avoids the last-known active preset when alternatives exist.
 
 ## Notes
 
