@@ -34,12 +34,22 @@ Use [HARDWARE.md](HARDWARE.md) for wiring the receiver and transmitter.
 .\flash_transmitter.ps1 -Port COM4
 ```
 
-### 5. Monitor the serial output
+### 5. Build and upload the WLED transmitter (optional)
+Copy `src/wled-transmitter/src/config.sample.h` to
+`src/wled-transmitter/src/config.local.h` and set `WIFI_SSID`,
+`WIFI_PASSWORD`, and `WLED_HOSTNAME` (hostname only, without `http://` or a
+path). This local config is ignored by Git. Then confirm the attached board is
+an ESP32-C3:
+```powershell
+.\flash_wled_transmitter.ps1 -Port COM5
+```
+
+### 6. Monitor the serial output
 ```powershell
 python -m platformio device monitor --port COM3
 ```
 
-### 6. Test the system
+### 7. Test the system
 Press the button on the transmitter. The receiver LED should toggle each time a packet is received.
 
 ## Manual PlatformIO CLI Commands
@@ -54,6 +64,12 @@ python -m platformio run -t upload --upload-port COM3
 ```powershell
 cd src\transmitter
 python -m platformio run -t upload --upload-port COM4
+```
+
+### WLED transmitter
+```powershell
+cd src\wled-transmitter
+python -m platformio run -e esp32-c3 -t upload --upload-port COM5
 ```
 
 ### Serial monitor
